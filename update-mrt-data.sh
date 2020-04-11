@@ -1,42 +1,44 @@
-#!/usr/bin/env bash -e
+#!/bin/bash -e
 # This script is intended to be run on a fresh DigitalOcean droplet
 
 # VARIABLES
-data_path = /mnt/volume_tor1_01
+DATA_PATH=/mnt/volume_tor1_01
+DATA_DISK=/dev/disk/by-id/scsi-0DO_Volume_volume-tor1-01
+export DATA_PATH DATA_DISK
 
-## Update System
+## Update System - do not parallelize, wait for this to finish!
 apt update
 apt dist-upgrade -y
 
+## attach volume
+( mkdir -p $DATA_PATH && \
+  mkfs.ext4 $DATA_DISK && \
+  mount -o discard,defaults,noatime $DATA_DISK $DATA_PATH && \
+  echo "$DATA_DISK $DATA_PATH ext4 defaults,nofail,discard 0 0" | sudo tee -a /etc/fstab ) &
+
+
 ## Install Misc software
-apt install -y axel curl htop mariadb-{server,client} python-{pymysql,ipy}
-#apt install python-virtualenv
-#wget https://www.isolario.it/tools/bgpscanner_1.0-1_20190320_amd64.deb https://www.isolario.it/tools/libisocore1_1.0-1_20190320_amd64.deb
+apt install -y axel htop mariadb-{server,client} python-{pymysql,ipy} pigz pbzip2
 axel -q https://stuff.ciscodude.net/.tools/bgpscanner_1.0-1_20190320_amd64.deb &
 axel -q https://stuff.ciscodude.net/.tools/libisocore1_1.0-1_20190320_amd64.deb &
 wait
 dpkg -i libisocore1_1.0-1_20190320_amd64.deb bgpscanner_1.0-1_20190320_amd64.deb
 
-## make mysql user and DB
-mysqladmin 
- create database bgpdb;
- create user bgpdb identified by 'password';
- GRANT ALL privileges ON `bgpdb`.* TO 'bgpdb'@'%';
- flush privileges;
 
-## attach volume
-mkdir -p /mnt/volume_tor1_01 
-mount -o discard,defaults,noatime /dev/disk/by-id/scsi-0DO_Volume_volume-tor1-01 /mnt/volume_tor1_01
-echo '/dev/disk/by-id/scsi-0DO_Volume_volume-tor1-01 /mnt/volume_tor1_01 ext4 defaults,nofail,discard 0 0' | sudo tee -a /etc/fstab
+## make mysql user and DB
+mysqladmin -uroot create bgpdb
+mysql -uroot -e "create user bgpdb identified by 'password'; GRANT ALL privileges ON `bgpdb`.* TO 'bgpdb'@'%';"
+mysqladmin -uroot flush-privileges;
+
 # BGP Processing
 
 ## get MRT Data
 cd $data_path
 axel -q http://data.ris.ripe.net/rrc11/latest-bview.gz &
-axel -q https://mbnog-mrt.sfo2.cdn.digitaloceanspaces.com/2020_04/rib.20200410.2016.bz2
+axel -q https://mbnog-mrt.sfo2.cdn.digitaloceanspaces.com/2020_04/rib.20200410.2016.bz2 &
 wait
-gunzip latest-bview.gz
-bunzip2 rib.20200410.2016.bz2
+pigz -d latest-bview.gz
+pbzip2 -d rib.20200410.2016.bz2
 
 ## process data
 
