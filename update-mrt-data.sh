@@ -4,11 +4,12 @@
 # VARIABLES
 DATA_PATH=/mnt/volume_tor1_01
 DATA_DISK=/dev/disk/by-id/scsi-0DO_Volume_volume-tor1-01
-MBNOG_URL=https://mbnog-mrt.sfo2.cdn.digitaloceanspaces.com/2020_04/rib.20200410.2016.bz2
+### TODO ### how do we know what the hour and minute will be?  You may want to instead chop that off the generated file at time of generation ###
+MBNOG_URL=https://mbnog-mrt.sfo2.cdn.digitaloceanspaces.com/$(date +%Y_%m)/rib.$(date +%Y%m%d.2016.bz2)
 MBASNS_URL=https://bgpdb.ciscodude.net/api/asns/province/mb
 CAASNLATEST_URL=???? ### TODO ###
 NUMCPUS=$(( $( awk '$1=="processor" && $2==":" {print $3}' /proc/cpuinfo | sort -n | tail -1 ) + 1 ))
-export DATA_PATH DATA_DISK MBNOG_URL MBASNS_URL
+export DATA_PATH DATA_DISK MBNOG_URL MBASNS_URL CAASNLATEST_URL NUMCPUS
 
 ## Update System - do not parallelize, wait for this to finish!
 apt update
