@@ -4,7 +4,11 @@
 # VARIABLES
 DATA_PATH=/mnt/volume_tor1_01
 DATA_DISK=/dev/disk/by-id/scsi-0DO_Volume_volume-tor1-01
-export DATA_PATH DATA_DISK
+MBNOG_URL=https://mbnog-mrt.sfo2.cdn.digitaloceanspaces.com/2020_04/rib.20200410.2016.bz2
+MBASNS_URL=https://bgpdb.ciscodude.net/api/asns/province/mb
+CAASNLATEST_URL=???? ### TODO ###
+NUMCPUS=$(( $( awk '$1=="processor" && $2==":" {print $3}' /proc/cpuinfo | sort -n | tail -1 ) + 1 ))
+export DATA_PATH DATA_DISK MBNOG_URL MBASNS_URL
 
 ## Update System - do not parallelize, wait for this to finish!
 apt update
@@ -18,71 +22,61 @@ apt dist-upgrade -y
 
 
 ## Install Misc software
-apt install -y axel htop mariadb-{server,client} python-{pymysql,ipy} pigz pbzip2
-axel -q https://stuff.ciscodude.net/.tools/bgpscanner_1.0-1_20190320_amd64.deb &
-axel -q https://stuff.ciscodude.net/.tools/libisocore1_1.0-1_20190320_amd64.deb &
-wait
-dpkg -i libisocore1_1.0-1_20190320_amd64.deb bgpscanner_1.0-1_20190320_amd64.deb
-
+(  apt install -y axel htop mariadb-{server,client} python-{pymysql,ipy} pigz pbzip2 mydumper; 
+   axel -q https://stuff.ciscodude.net/.tools/bgpscanner_1.0-1_20190320_amd64.deb &
+   axel -q https://stuff.ciscodude.net/.tools/libisocore1_1.0-1_20190320_amd64.deb &
+   wait
+   dpkg -i libisocore1_1.0-1_20190320_amd64.deb bgpscanner_1.0-1_20190320_amd64.deb ) &
 
 ## make mysql user and DB
-mysqladmin -uroot create bgpdb
-mysql -uroot -e "create user bgpdb identified by 'password'; GRANT ALL privileges ON `bgpdb`.* TO 'bgpdb'@'%';"
-mysqladmin -uroot flush-privileges;
+( mysqladmin -uroot create bgpdb && \
+  mysql -uroot -e "create user bgpdb identified by 'password'; GRANT ALL privileges ON `bgpdb`.* TO 'bgpdb'@'%';" && \
+  mysqladmin -uroot flush-privileges; )
+
+wait
 
 # BGP Processing
 
-## get MRT Data
+## get MRT Data and process in parallel
 cd $data_path
-axel -q http://data.ris.ripe.net/rrc11/latest-bview.gz &
-axel -q https://mbnog-mrt.sfo2.cdn.digitaloceanspaces.com/2020_04/rib.20200410.2016.bz2 &
+( axel -q http://data.ris.ripe.net/rrc11/latest-bview.gz && pigz -d latest-bview.gz && bgpscanner latest-bview > ripe-ris-rrc11 ) &
+( axel -q $MBNOG_URL && pbzip2 -d  ${MBNOG_URL##*/} && bgpscanner rib.20200410.2016 > mbnog ) &
+( axel -q $MBASNS_URL && cut -d\| -f1 mb > mb-asns ) &
+( axel -q #### WHERE DO WE GET ca-asn-latest.txt ??? #### ) &
 wait
-pigz -d latest-bview.gz
-pbzip2 -d rib.20200410.2016.bz2
 
-## process data
-
-bgpscanner rib.20200410.2016 > mbnog
-bgpscanner latest-bview > ripe-ris-rrc11 
-
-axel -q https://bgpdb.ciscodude.net/api/asns/province/mb
-cut -d\| -f1 mb > mb-asns
-
-task(){
+cat > task1.sh <<-__EOF__
+  #!/bin/sh
   echo "Stage 1: $1";
   bgpscanner -p "$1\$" rib.20200410.2016 | grep -v 16395:9:0 > routes/$1.routes.txt
-}
-task2(){
+  __EOF__
+  
+cat > task2.sh <<-__EOF__
+  #!/bin/sh
   echo "Stage 2: $1";
   bgpscanner -p "$1\$" latest-bview >> routes/$1.routes.txt
-}
-task3(){
+  __EOF__
+
+cat > task3.sh <<-__EOF__
+  #!/bin/sh
   echo "Stage 3: $1";
   ~/dev/theo/mrt2mysql/mrt2mysql-batchedcommit.py <  $1
-}
+  __EOF__
 
-N=8
-(
-for as in `cat ca-asn-latest.txt`; do
-  ((i=i%N)); ((i++==0)) && wait
-  task "$as" & 
-done
-for as in `cat ca-asn-latest.txt`; do
-  ((i=i%N)); ((i++==0)) && wait
-  task2 "$as" & 
-done
-)
+# do the processing in parallel as much as possible (within the limits of shell scripting)
+cat ca-asn-latest.txt | xargs -P $NUMCPUS -n 1 task1
+rm task1.sh
+cat ca-asn-latest.txt | xargs -P $NUMCPUS -n 1 task2
+rm task2.sh
 
+# remove empty data, no point in wasting cycles parsing it
 find routes/ -empty -name \*.txt -delete
 
-N=2
-(
-for as in `ls routes/*.txt`; do
-  ((i=i%N)); ((i++==0)) && wait
-  task3 "$as" & 
-done
-)
+# Final processing
+echo routes/*.txt` | xargs -P $NUMCPUS -n 1 task3
 
 ## export data
-mysqldump bgpdb > bgpdb.mysqldump
+[ -d dumpfiles ] && rmdir -rf dumpfiles
+mkdir dumpfiles
+mydumper -B bgpdb -o dumpfiles -c --less-locking --no-backup-locks --no-locks -u root -t (( $NUMCPUS / 2 ))
 #then I suck this down from my mysql server and import it there to refresh the data
