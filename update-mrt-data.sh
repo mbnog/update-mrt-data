@@ -17,7 +17,6 @@ apt dist-upgrade -y
 
 ## attach volume
 ( mkdir -p $DATA_PATH && \
-  mkfs.ext4 $DATA_DISK && \
   mount -o discard,defaults,noatime $DATA_DISK $DATA_PATH && \
   echo "$DATA_DISK $DATA_PATH ext4 defaults,nofail,discard 0 0" | sudo tee -a /etc/fstab ) &
 
