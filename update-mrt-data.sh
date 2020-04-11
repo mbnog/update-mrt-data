@@ -22,7 +22,7 @@ apt dist-upgrade -y
 
 
 ## Install Misc software
-(  apt install -y axel htop mariadb-{server,client} python-{pymysql,ipy} pigz pbzip2 mydumper; 
+(  apt install -y axel htop mariadb-{server,client} pigz pbzip2 mydumper;
    axel -q https://stuff.ciscodude.net/.tools/bgpscanner_1.0-1_20190320_amd64.deb &
    axel -q https://stuff.ciscodude.net/.tools/libisocore1_1.0-1_20190320_amd64.deb &
    wait
