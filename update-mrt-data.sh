@@ -64,9 +64,9 @@ cat > task3.sh <<-__EOF__
   __EOF__
 
 # do the processing in parallel as much as possible (within the limits of shell scripting)
-cat ca-asn-latest.txt | xargs -P $NUMCPUS -n 1 task1
+cat ca-asn-latest.txt | xargs -P (( $NUMCPUS * 4 )) -n 1 task1
 rm task1.sh
-cat ca-asn-latest.txt | xargs -P $NUMCPUS -n 1 task2
+cat ca-asn-latest.txt | xargs -P (( $NUMCPUS * 4 )) -n 1 task2
 rm task2.sh
 
 # remove empty data, no point in wasting cycles parsing it
