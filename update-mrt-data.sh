@@ -47,20 +47,20 @@ wait
 
 cat > task1.sh <<-__EOF__
   #!/bin/sh
-  echo "Stage 1: $1";
   bgpscanner -p "$1\$" rib.20200410.2016 | grep -v 16395:9:0 > routes/$1.routes.txt
+  echo "Stage 1: $1";
   __EOF__
   
 cat > task2.sh <<-__EOF__
   #!/bin/sh
-  echo "Stage 2: $1";
   bgpscanner -p "$1\$" latest-bview >> routes/$1.routes.txt
+  echo "Stage 2: $1";
   __EOF__
 
 cat > task3.sh <<-__EOF__
   #!/bin/sh
+  mrt2mysql/mrt2mysql-batchedcommit.py < $1
   echo "Stage 3: $1";
-  ~/dev/theo/mrt2mysql/mrt2mysql-batchedcommit.py <  $1
   __EOF__
 
 # do the processing in parallel as much as possible (within the limits of shell scripting)
