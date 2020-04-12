@@ -31,7 +31,8 @@ dpkg -i libisocore1_1.0-1_20190320_amd64.deb bgpscanner_1.0-1_20190320_amd64.deb
 ## make mysql user and DB
 mysqladmin -uroot create bgpdb && \
 mysql -uroot -e "create user bgpdb identified by 'password'; GRANT ALL privileges ON `bgpdb`.* TO 'bgpdb'@'%';" && \
-mysqladmin -uroot flush-privileges;
+mysqladmin -uroot flush-privileges && \
+mysql -uroot bgpdb < $DATA_PATH/mrt.sql;
 
 wait # in case anything is still running
 
