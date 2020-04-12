@@ -22,18 +22,18 @@ apt dist-upgrade -y
 
 
 ## Install Misc software
-(  apt install -y axel htop mariadb-{server,client} pigz pbzip2 mydumper;
-   axel -q https://stuff.ciscodude.net/.tools/bgpscanner_1.0-1_20190320_amd64.deb &
-   axel -q https://stuff.ciscodude.net/.tools/libisocore1_1.0-1_20190320_amd64.deb &
-   wait
-   dpkg -i libisocore1_1.0-1_20190320_amd64.deb bgpscanner_1.0-1_20190320_amd64.deb ) &
+apt install -y axel htop mariadb-{server,client} pigz pbzip2 mydumper;
+axel -q https://stuff.ciscodude.net/.tools/bgpscanner_1.0-1_20190320_amd64.deb &
+axel -q https://stuff.ciscodude.net/.tools/libisocore1_1.0-1_20190320_amd64.deb &
+wait
+dpkg -i libisocore1_1.0-1_20190320_amd64.deb bgpscanner_1.0-1_20190320_amd64.deb
 
 ## make mysql user and DB
-( mysqladmin -uroot create bgpdb && \
-  mysql -uroot -e "create user bgpdb identified by 'password'; GRANT ALL privileges ON `bgpdb`.* TO 'bgpdb'@'%';" && \
-  mysqladmin -uroot flush-privileges; )
+mysqladmin -uroot create bgpdb && \
+mysql -uroot -e "create user bgpdb identified by 'password'; GRANT ALL privileges ON `bgpdb`.* TO 'bgpdb'@'%';" && \
+mysqladmin -uroot flush-privileges;
 
-wait
+wait # in case anything is still running
 
 # BGP Processing
 
@@ -74,6 +74,7 @@ find routes/ -empty -name \*.txt -delete
 
 # Final processing
 echo routes/*.txt` | xargs -P $NUMCPUS -n 1 task3
+rm task3.sh
 
 ## export data
 [ -d dumpfiles ] && rmdir -rf dumpfiles
