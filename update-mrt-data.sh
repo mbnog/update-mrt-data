@@ -30,8 +30,7 @@ dpkg -i libisocore1_1.0-1_20190320_amd64.deb bgpscanner_1.0-1_20190320_amd64.deb
 ## make mysql user and DB
 mysqladmin -uroot create bgpdb && \
 mysql -uroot -e "create user bgpdb identified by 'password'; GRANT ALL privileges ON `bgpdb`.* TO 'bgpdb'@'%';" && \
-mysqladmin -uroot flush-privileges && \
-mysql -uroot bgpdb < $DATA_PATH/mrt.sql;
+mysqladmin -uroot flush-privileges;
 
 wait # in case anything is still running
 
@@ -39,6 +38,7 @@ wait # in case anything is still running
 
 ## get MRT Data and process in parallel
 cd $DATA_PATH
+mysql -uroot bgpdb < mrt.sql
 ( axel -q http://data.ris.ripe.net/rrc11/latest-bview.gz && pigz -d latest-bview.gz && bgpscanner latest-bview > ripe-ris-rrc11 ) &
 ( axel -q $MBNOG_URL && pbzip2 -d  latest-mbnog-rib.bz2 && bgpscanner latest-mbnog-rib > mbnog ) &
 ( axel -q -o ca-asn-latest.txt $CAASNLATEST_URL ) &
