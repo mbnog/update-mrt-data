@@ -51,13 +51,13 @@ cat > task1.sh <<-__EOF__
 __EOF__
   
 cat > task2.sh <<-__EOF__
-  #!/bin/sh
+#!/bin/sh
   bgpscanner -p "\$1\\$" latest-bview >> routes/\$1.routes.txt
   echo "Stage 2: \$1";
 __EOF__
 
 cat > task3.sh <<-__EOF__
-  #!/bin/sh
+#!/bin/sh
   mrt2mysql/mrt2mysql-batchedcommit.py < \$1
   echo "Stage 3: \$1";
 __EOF__
