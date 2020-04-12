@@ -38,7 +38,7 @@ wait # in case anything is still running
 # BGP Processing
 
 ## get MRT Data and process in parallel
-cd $data_path
+cd $DATA_PATH
 ( axel -q http://data.ris.ripe.net/rrc11/latest-bview.gz && pigz -d latest-bview.gz && bgpscanner latest-bview > ripe-ris-rrc11 ) &
 ( axel -q $MBNOG_URL && pbzip2 -d  ${MBNOG_URL##*/} && bgpscanner rib.20200410.2016 > mbnog ) &
 ( axel -q $MBASNS_URL && cut -d\| -f1 mb > mb-asns ) &
