@@ -62,19 +62,17 @@ cat > task3.sh <<-__EOF__
   echo "Stage 3: \$1";
 __EOF__
 
-chmod +x task*.sh
-
 # do the processing in parallel as much as possible (within the limits of shell scripting)
-cat ca-asn-latest.txt | xargs -P $(( $NUMCPUS * 4 )) -n 1 ./task1.sh
+cat ca-asn-latest.txt | xargs -P $(( $NUMCPUS * 4 )) -n 1 sh task1.sh
 rm task1.sh
-cat ca-asn-latest.txt | xargs -P $(( $NUMCPUS * 4 )) -n 1 ./task2.sh
+cat ca-asn-latest.txt | xargs -P $(( $NUMCPUS * 4 )) -n 1 sh task2.sh
 rm task2.sh
 
 # remove empty data, no point in wasting cycles parsing it
 find routes/ -empty -name \*.txt -delete
 
 # Final processing
-echo routes/*.txt | xargs -P $NUMCPUS -n 1 ./task3.sh
+echo routes/*.txt | xargs -P $NUMCPUS -n 1 sh task3.sh
 rm task3.sh
 
 ## export data
