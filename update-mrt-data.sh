@@ -76,7 +76,7 @@ rm task2.sh
 find routes/ -empty -name \*.txt -delete
 
 # Final processing
-echo routes/*.txt` | xargs -P $NUMCPUS -n 1 ./task3.sh
+echo routes/*.txt | xargs -P $NUMCPUS -n 1 ./task3.sh
 rm task3.sh
 
 ## export data
