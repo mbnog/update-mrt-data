@@ -5,11 +5,10 @@
 DATA_PATH=/mnt/volume_tor1_01
 DATA_DISK=/dev/disk/by-id/scsi-0DO_Volume_volume-tor1-01
 ### TODO ### how do we know what the hour and minute will be?  You may want to instead chop that off the generated file at time of generation ###
-MBNOG_URL=https://mbnog-mrt.sfo2.cdn.digitaloceanspaces.com/$(date +%Y_%m)/rib.$(date +%Y%m%d.2016.bz2)
-MBASNS_URL=https://bgpdb.ciscodude.net/api/asns/province/mb
+MBNOG_URL=https://mbnog-mrt.sfo2.cdn.digitaloceanspaces.com/latest-mbnog-rib.bz2
 CAASNLATEST_URL=https://bgpdb.ciscodude.net/api/asns/
 NUMCPUS=$(( $( awk '$1=="processor" && $2==":" {print $3}' /proc/cpuinfo | sort -n | tail -1 ) + 1 ))
-export DATA_PATH DATA_DISK MBNOG_URL MBASNS_URL CAASNLATEST_URL NUMCPUS
+export DATA_PATH DATA_DISK MBNOG_URL CAASNLATEST_URL NUMCPUS
 
 ## Update System - do not parallelize, wait for this to finish!
 apt update
@@ -41,14 +40,13 @@ wait # in case anything is still running
 ## get MRT Data and process in parallel
 cd $DATA_PATH
 ( axel -q http://data.ris.ripe.net/rrc11/latest-bview.gz && pigz -d latest-bview.gz && bgpscanner latest-bview > ripe-ris-rrc11 ) &
-( axel -q $MBNOG_URL && pbzip2 -d  ${MBNOG_URL##*/} && bgpscanner rib.20200410.2016 > mbnog ) &
-( axel -q $MBASNS_URL && cut -d\| -f1 mb > mb-asns ) &
+( axel -q $MBNOG_URL && pbzip2 -d  latest-mbnog-rib.bz2 && bgpscanner latest-mbnog-rib > mbnog ) &
 ( axel -q -o ca-asn-latest.txt $CAASNLATEST_URL ) &
 wait
 
 cat > task1.sh <<-__EOF__
 #!/bin/sh
-  bgpscanner -p "\$1\\$" rib.20200410.2016 | grep -v 16395:9:0 > routes/\$1.routes.txt
+  bgpscanner -p "\$1\\$" latest-mbnog-rib | grep -v 16395:9:0 > routes/\$1.routes.txt
   echo "Stage 1: \$1";
 __EOF__
   
@@ -84,3 +82,5 @@ rm task3.sh
 mkdir dumpfiles
 mydumper -B bgpdb -o dumpfiles -c --less-locking --no-backup-locks --no-locks -u root -t $(( $NUMCPUS / 2 ))
 #then I suck this down from my mysql server and import it there to refresh the data
+
+rm latest-mbnog-rib latest-bview
